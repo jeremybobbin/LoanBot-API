@@ -8,7 +8,7 @@ const FormDao = require('./FormDao');
 const Responder = require('./Responder');
 
 let formDao = new FormDao('test', null);
-let responder = new Responder();
+let responder = new Responder(formDao);
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -29,7 +29,6 @@ app.get('/sql', (req, res) => {
 });
 
 app.post('/sql', (req, res) => {
-    console.log(req.body.sql);
     formDao.query(req.body.sql)
         .then(result => res.send(result))
         .catch(result => res.send(result))
@@ -40,6 +39,7 @@ let body;
 
 app.post('/', (req, res) => {
     body = req.body;
+    body.ip = req.headers['x-forwarded-for'] || req.ip;
 
     let jsonResponse = responder.respond(req);
     res.setHeader('Content-Type', 'application/json');

@@ -1,90 +1,71 @@
 const FormDao = require('./FormDao');
+const Request = require('./Request');
 
 module.exports = class Responder {
 
-    constructor() {
-        this.formDao = new FormDao('test', null);
+    constructor(dao) {
+        this.formDao = dao;
     }
 
     respond(req) {
-        if(this.isValid(req)) {
-            return this.handleContext(req.body.queryResult.outputContexts);
-        }
+        return this.handleRequest(new Request(req));
     }
 
-    isValid(req) {
-        if (req.hasOwnProperty('body')
-            && req.body.hasOwnProperty('queryResult')
-            && req.body.queryResult.hasOwnProperty('outputContexts')) {
-                return true;
+    handleRequest(request) {
+        let context = request.getContextByNames(['info', 'loaninfo']);
+        if (context) {
+            switch(context.getName()) {
+                case 'info':
+                    return this.handleInfo(context);
+                    break;
+                case 'loaninfo':
+                    return this.handleLoanInfo(context);
+                    break;
             }
-        
-        return false;
-    }
-
-    getContextName(context) {
-        if(context === undefined) {
-            return false;
-        }
-        let arr = context.name.split('/');
-        let l = arr.length;
-        let contexts = arr[l - 2];
-        let name = arr[l - 1];
-        if (contexts === 'contexts') return name;
-        console.log("Shit's broke.");
-        return false;
-    }
-    
-    getRelevantContext(contexts) {
-        let validContextNames = ['info', 'estimateinfo', 'loaninfo'];
-        let validContext = contexts.find((context, i) => {
-            return validContextNames.includes(this.getContextName(context));
-        });
-        return validContext !== [] ? validContext : false; 
-    }
-
-    handleContext(contexts) {
-        let context = this.getRelevantContext(contexts);
-        if (context === false) {
-            return;
-        }
-
-        
-        switch(this.getContextName(context)) {
-            case 'info':
-                return this.handleInfo(context.parameters);
-                break;
-            case 'loaninfo':
-                return this.handleLoanInfo(context.parameters);
-                break;
         }
     }
 
+    handleLoanInfo(context) {
+        const p = context.getParams();
+        const sessId = context.getSession();
+        const ip = context.getIp();
 
-    handleLoanInfo(p) {
         let loan = p.LoanType === 'Auto Loan' ? `an ${p.LoanType}` : `a ${p.LoanType}`; 
-        console.log(p);
+        this.formDao.putSession(sessId, ip, null, null, null, null, null, p.creditScore,
+            p.income.amount, p.LoanType, p.moneyDown.amount, this.formatTerm(p.term));
+        
         let text = `We can approve you for ${loan} of up to $${p.creditScore * 35}! Would you like to learn about the offers approved for you?`;
         return this.jsonTextResponse(text);
     }
 
-    handleInfo(p) {
+    handleInfo(context) {
+        const sessId = context.getSession();
+        const ip = context.getIp();
+        const p = context.getParams();
         if(p.hasOwnProperty('email')) {
             p.email = this.formatEmail(p.email);
         }
-        this.formDao.insertFormSub(p.first, p.last, null, p.email, p.address, p.zip);
         
-        let text = `You can go to ${btnLink} to get more information about your specialized loan.`;
+        this.formDao.putSession(sessId, ip, p.first, p.last, p.email, p.address, p.zip);
+
+        let link = this.prePopLink(p);
+
+        let text = `You can go to ${link} to get more information about your specialized loan.`;
         let title = p.first ? `Click me, ${p.first}!` : `Click me!`;
         let subtitle = 'Click here to see exclusive offers!';
         let imgUrl = 'http://www.pebble.tv/wp-content/uploads/2014/04/dolphin.jpg';
         let btnText = 'Click here.';
-        let btnLink = 'www.google.com';
+        let btnLink = link;
         return this.jsonCardResponse(text, title, subtitle, imgUrl, btnText, btnLink);
     }
 
     formatEmail(email) {
         return email.toLowerCase().replace(/ at /, '@').replace(/\s/g, '');
+    }
+
+    formatTerm(term) {
+        if(term.unit = 'yr') return term.amount * 12;
+        return term.amount;
     }
     
     prePopLink(b) {
