@@ -13,7 +13,6 @@ module.exports = class Request {
         this.contexts = [];
         this.obj.queryResult.outputContexts.forEach(context => this.contexts.push(new Context(context, this)));
         this.obj.ip = req.ip;
-        this.obj.ips = req.ips;
     }
 
     getContextByName(name) {

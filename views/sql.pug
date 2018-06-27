@@ -1,0 +1,17 @@
+extends layout
+
+block content
+    table.table.mt-5
+        thead
+            tr
+                if columns
+                    each val in columns
+                        th(scope='col')= val
+                    else
+                        h1 Top
+        tbody
+            if results
+                each row in results
+                    tr
+                        each col, key in row
+                            td= col 

@@ -1,4 +1,4 @@
-const FormDao = require('./FormDao');
+const config = require('./config');
 const Request = require('./Request');
 
 module.exports = class Responder {
@@ -8,11 +8,13 @@ module.exports = class Responder {
     }
 
     respond(req) {
-        return this.handleRequest(new Request(req));
+        return new Promise(resolve => {
+            resolve(this.handleRequest(new Request(req)));
+        });
     }
 
     handleRequest(request) {
-        let context = request.getContextByNames(['info', 'loaninfo']);
+        let context = request.getContextByNames(['info', 'loaninfo', 'init']);
         if (context) {
             switch(context.getName()) {
                 case 'info':
@@ -20,6 +22,9 @@ module.exports = class Responder {
                     break;
                 case 'loaninfo':
                     return this.handleLoanInfo(context);
+                    break;
+                case 'init': 
+                    return this.handleInit(context);
                     break;
             }
         }
@@ -59,6 +64,14 @@ module.exports = class Responder {
         return this.jsonCardResponse(text, title, subtitle, imgUrl, btnText, btnLink);
     }
 
+    handleInit(context) {
+        const ip = context.getIp();
+        return this.formDao.getSessionByIp(ip)
+            .then(results => {
+                return this.jsonFollowup('Dang', 'jer_event');
+            });
+    }
+
     formatEmail(email) {
         return email.toLowerCase().replace(/ at /, '@').replace(/\s/g, '');
     }
@@ -69,12 +82,12 @@ module.exports = class Responder {
     }
     
     prePopLink(b) {
-        let link = 'www.prepoppage.com/';
+        let link = config.prepop.base;
         let isFirst = true;
         for(let prop in b) {
             let char = isFirst ? '?' : '&';
-            if(b[prop] && !prop.endsWith('original')) {
-                link += char + prop + '=' + b[prop]; 
+            if(b[prop] && !prop.endsWith('original') && config.prepop.params[prop].enabled === true) {
+                link += char + config.prepop.params[prop].key + '=' + b[prop]; 
             }
             isFirst = false;
         }
@@ -83,6 +96,19 @@ module.exports = class Responder {
 
     jsonTextResponse(text) {
         return JSON.stringify({"fulfillmentText": text});
+    }
+
+    jsonFollowup(text, event) {
+        return JSON.stringify({
+            "fulfillmentText": text,
+            "followupEventInput": {
+                "name": event,
+                "languageCode": "en-US",
+                "parameters": {
+                    "param": "param value"
+                }
+            }
+        });
     }
 
     jsonCardResponse(fulfillmentText, title, subtitle, imgUrl, buttonText, buttonLink) {

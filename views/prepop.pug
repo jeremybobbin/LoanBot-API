@@ -1,0 +1,15 @@
+extends layout
+
+block content
+    .container.mt-5
+        form(action="/prepop", method="post")
+            .form-group
+                h4 Base URL
+                input.form-control#base(type='text' name='base' value=base)
+            h4 Params
+            each value, key in params
+                .form-check.ml-3.my-4
+                    input.form-check-input#first(type='checkbox' name='' + key + 'Checked' checked=value.enabled)
+                    label.form-check-label(for='first')=value.label
+                    input.form-control(type='text' name=key value=value.key)
+            button.btn.btn-primary(type='submit') Submit

@@ -40,6 +40,11 @@ module.exports = class formDao {
         });
     }
 
+    getSessionByIp(ip) {
+        return this.query(`SELECT * FROM sessions WHERE ip = '${ip}';`)
+            .then(result => result[0]);
+    }
+
     insertSession(sessId, ip, first, last, email, address, zip, creditScore, income, loanType, downPayment, term) {
         let sql = `INSERT INTO sessions (id, ip, first, last, email, address, zip, \
              creditScore, income, loanType, downPayment, term) VALUES \
